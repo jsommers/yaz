@@ -1,0 +1,157 @@
+/*
+ * $Id: README,v 1.8 2006/07/02 14:53:44 jsommers Exp $
+ */
+/*
+ * Copyright (c) 2005  Joel Sommers.  All rights reserved.
+ *
+ * This file is part of yaz, an end-to-end available bandwidth
+ * measurement tool.
+ *
+ * Yaz is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Yaz is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Yaz; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+================================================================================
+OVERVIEW
+
+Yaz is a tool for estimating end-to-end available bandwidth.  It operates
+on a principle similar to pathload (we refer to it in our technical paper
+as a kind of "calibrated pathload").  However, yaz has several significantly
+different properties:
+
+1) It does not use any individual packet spacings when inferring congestion
+along a path.  It uses mean spacings, which as we show in our technical paper
+do not suffer (or suffer much less!) from errors inherent in commodity
+hardware and operating systems.
+
+2) It uses both stream expansion (i.e., increasing trends in one-way delays)
+as well as stream compression (i.e., decreasing trends in one-way delays)
+when inferring congestion.  Compression is also evidence for congestion,
+in particular that the measurement stream is potentially at a higher rate
+than the actual available bandwidth along a path.
+
+There are other peculiarities differentiating yaz from pathload.  Please
+refer to the yaz technical paper: A Proposed Calibration Framework for
+Available Bandwidth Measurement Tools.  In addition, with any tool that
+has a relatively tight coupling between operating system and NIC capabilities
+and estimation accuracy it is advised that you become familiar with the 
+various knobs in yaz and how they affect probe traffic and how they may
+affect the accuracy of estimation in your local environment.  We take
+no responsibility for your use of inappropriate settings!
+
+================================================================================
+USING YAZ
+
+For avbw estimation, two yaz processes must be started, one to send probe 
+traffic and one to receive the traffic.  After you've compiled yaz (see
+INSTALL), you may do the following to get yaz started:
+
+receiver: ./yaz -R
+sender: ./yaz -S <ip address of receiver> [additional parameters - see below]
+
+Note that the receiver must be started before the sender.  Note also that
+yaz will *continually* estimate available bandwidth between sender and
+receiver.  In addition, the estimates printed by yaz are not filtered through 
+an exponentially weighted moving average filter.  We highly recommend doing
+so (either through an external script or by modifying yaz) as estimates are 
+sensitive to transient network dynamics (as is the case with *all* avbw 
+estimation tools).  We found in our studies that alpha of 0.3 in the EWMA 
+filter works best.
+
+Yaz may require some tuning of parameters to work effectively in your
+local environment.  In particular:
+
+1) The minimum packet size.  The minimum packet size along with the maximum
+spacing (which is hardcoded but may need adjustment for your local environment)
+determine the minimum stream rate at which yaz can send probes.  As noted
+below, the minimum packet size should be large enough so that consistent
+results can be obtained from your NIC and OS.  The maximum spacing should
+not be too large to avoid effects from OS context switches.  Some 
+experimentation may be necessary to find reasonable values for your 
+environment.
+
+2) Packet stream length.  We found that at least 20 packets in a stream are
+required to yield a stream that has, on average, consistent spacing.  However,
+your hardware/OS/NIC may require a longer stream.  We have conservatively set
+the stream length to 50 packets, which we have found to be a reasonable
+setting.  However, you may wish to reduce this amount in order to reduce
+overall load introduced by yaz.  Note, however, that reducing the stream
+length reduces the interval over which the cross traffic interacts with probes
+which may negatively affect the overall estimation (as it theoretically
+increases measurement variance).
+
+3) Convergence resolution (indirectly, the zeta parameter).
+This parameter may be most critical to set for your environment.  In one
+measurement round, yaz sends a probe stream, measuring its own mean 
+input spacing, and subsequently receives the stream, measuring the mean
+output spacing.  If the absolute difference between the input and output
+spacing exceeds some zeta threshold above the input spacing, it is
+inferred that the input stream rate was above the available bandwidth along
+the path.  The stream rate is reduced, and another measurement round
+begins.  So, depending on the environment, there may be very consistent
+disturbance or distortion in the stream that is not related to network
+congestion (e.g., some lower layer that causes a consistent distortion
+in the packet spacings).  In this case, the resolution parameter should
+be increased.  However, it should be clear that increasing this parameter
+may cause the estimates to be less accurate.  In our environment, we found 
+that the default setting gives good results.  You may not find this to be
+the case in your environment.  It is advised that you perform some experiments
+with known (or "mostly known") background traffic to understand what 
+setting(s) may work best for you.
+
+4) Network interface card interrupt coalescence adjustment.
+Generally, interrupt coalescence should be disabled to obtain accurate
+estimates.  Depending how IC is configured on a given OS/NIC, estimates
+may still be accurate, but this is highly system dependent.  We have found
+that for best results, IC should be disabled (or set close to zero).
+
+5) Output verbosity.
+Note that use of the "-v" option to increase output verbosity by yaz
+may affect the quality of estimates due to additional i/o during
+tests.  The additional system calls and potential context switches
+may degrade estimation accuracy.
+
+
+The load imposed by yaz on the network may be tuned in the following ways:
+
+1) The mean inter-stream spacing may be increased to reduce load.  This
+is the sleep time between streams of an individual measurement.  It is
+also 1/10 the sleep time between estimation rounds.  For example, the
+default value is 50 milliseconds, so the mean sleep time between sending
+streams *within* an estimation round is 50 milliseconds and between
+complete estimations the mean sleep time is 500 milliseconds.  Note that
+these times are both exponentially distributed to avoid any network
+periodicities.
+
+2) The minimum packet size and minimum/initial packet spacings also
+affect the overall load.  It is recommended that you set the minimum
+packet size to a "large enough" size that you can still get consistent
+spacings from your NIC.  Typically, you cannot get this with packets
+below, say, 100 bytes.  The minimum spacing, which is also the initial
+spacing, should be set to something approximating the minimum link
+capacity along the path.  So, if your narrowest link is 155 Mb/s (OC3), your
+minimum spacing should be (at maximum) about 77 microseconds for maximum
+packet sizes of 1500 bytes.
+
+Finally, note that libpcap may be used to collect probe timestamps.  By
+default, gettimeofday() is used for timestamps.  When configuring yaz,
+use the --enable-pcap option to compile with libpcap.
+ 
+================================================================================
+ODDIITES
+
+The name yaz does not stand for "yet another ...".  It actually is named
+after the Boston Red Sox great, Carl Yastrzemski.  Go Sox.
+
+================================================================================

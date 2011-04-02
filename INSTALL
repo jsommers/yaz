@@ -1,0 +1,38 @@
+/*
+ * $Id: INSTALL,v 1.1 2006/07/02 14:01:12 jsommers Exp $
+ */
+/*
+ * Copyright (c) 2005  Joel Sommers.  All rights reserved.
+ *
+ * This file is part of yaz, an end-to-end available bandwidth
+ * measurement tool.
+ *
+ * Yaz is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * Yaz is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Yaz; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ */
+
+To configure and compile yaz, simply do the following:
+
+./configure
+make
+
+Yaz has been tested on MacOS X, FreeBSD, and Linux platforms.  You are offered
+absolutely no guarantee for other systems.  The requirements for getting
+yaz up and running are quite minimal, so with a little modification you
+should be able to get it up and running on most any platform.  It requires
+a working c++, STL, and Berkeley sockets.  Optionally, yaz may be compiled
+to use libpcap for timestamps.
+
+Please refer to the README for additional documentation, since yaz may 
+require some tuning in order to achieve good results in your local environment.
